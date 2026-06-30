@@ -94,21 +94,28 @@
     const p = state.people[owner] || {};
     const node = el("div", "avatar" + (extraCls ? " " + extraCls : ""));
     if (p.color) node.style.setProperty("--owner", p.color);
-    node.textContent = initials(owner);
     node.setAttribute("role", "img");
     node.setAttribute("aria-label", owner || "Unknown");
+
+    const showInitials = () => {
+      node.classList.add("avatar--initials");
+      node.textContent = initials(owner);
+    };
+
     if (p.img) {
-      const img = new Image();
+      // Real <img> in the DOM (decoded eagerly). If it 404s, fall back to
+      // coloured initials. Must be in the DOM — a detached image never loads.
+      const img = el("img", "avatar__img");
       img.alt = "";
-      img.loading = "lazy";
-      img.addEventListener("load", () => {
-        node.textContent = "";
-        img.style.cssText = "width:100%;height:100%;object-fit:cover;border-radius:50%";
-        node.appendChild(img);
+      img.decoding = "async";
+      img.addEventListener("error", () => {
+        img.remove();
+        showInitials();
       });
-      // On 404 we simply keep the coloured initials already shown.
-      img.addEventListener("error", () => {});
+      node.appendChild(img);
       img.src = "./assets/people/" + p.img;
+    } else {
+      showInitials();
     }
     return node;
   }
@@ -234,49 +241,96 @@
     return r ? r.label : key;
   }
 
+  const isMobile = () => window.matchMedia("(max-width: 900px)").matches;
+
+  // Walk the tree from a root match down to its R32 leaves, one array per round
+  // (root first). SF-1 -> [[SF-1],[QF-1,QF-2],[R16-1..4],[8 x R32]]. Because each
+  // node expands to [source_home, source_away] in order, the deepest array is the
+  // clean top-to-bottom R32 order, so feeders of an R16 always sit adjacent.
+  function levelsFromRoot(rootId) {
+    const levels = [];
+    let cur = [rootId];
+    while (cur.length) {
+      levels.push(cur.slice());
+      const first = state.byId[cur[0]];
+      if (!first || first.round === "R32") break;
+      const next = [];
+      for (const id of cur) {
+        const m = state.byId[id];
+        if (m.source_home) next.push(m.source_home);
+        if (m.source_away) next.push(m.source_away);
+      }
+      cur = next;
+    }
+    return levels;
+  }
+
+  function renderColumn(ids) {
+    const first = state.byId[ids[0]];
+    const col = el("div", "round round--" + first.round.toLowerCase());
+
+    const title = el("button", "round__title");
+    title.type = "button";
+    title.setAttribute("aria-expanded", "true");
+    const label = el("span");
+    label.textContent = roundLabel(first.round);
+    const count = el("span", "round__count");
+    count.textContent = ids.length > 1 ? ids.length + " ties" : "";
+    const chev = el("span", "round__chevron");
+    chev.setAttribute("aria-hidden", "true");
+    chev.textContent = "▾";
+    const rightWrap = el("span");
+    rightWrap.style.cssText = "display:inline-flex;align-items:center;gap:10px";
+    rightWrap.append(count, chev);
+    title.append(label, rightWrap);
+
+    const list = el("div", "round__matches");
+    for (const id of ids) list.appendChild(renderMatch(state.byId[id]));
+
+    title.addEventListener("click", () => {
+      if (!isMobile()) return;
+      const collapsed = col.classList.toggle("is-collapsed");
+      title.setAttribute("aria-expanded", String(!collapsed));
+    });
+
+    col.append(title, list);
+    return col;
+  }
+
   function renderBracket() {
     const bracket = $("#bracket");
     bracket.innerHTML = "";
-    const rounds = state.fixtures.rounds || [];
+    const finalMatch = state.fixtures.matches.find((m) => m.round === "FINAL");
+    if (!finalMatch) return;
 
-    for (const r of rounds) {
-      const matches = state.fixtures.matches.filter((m) => m.round === r.key);
-      if (!matches.length) continue;
-
-      const col = el("div", "round round--" + r.key.toLowerCase());
-      const title = el("button", "round__title");
-      title.type = "button";
-      title.setAttribute("aria-expanded", "true");
-      const label = el("span");
-      label.textContent = r.label;
-      const right = el("span", "round__count");
-      right.textContent = matches.length === 1 ? "" : matches.length + " ties";
-      const chev = el("span", "round__chevron");
-      chev.setAttribute("aria-hidden", "true");
-      chev.textContent = "▾";
-      const rightWrap = el("span");
-      rightWrap.style.cssText = "display:inline-flex;align-items:center;gap:10px";
-      rightWrap.append(right, chev);
-      title.append(label, rightWrap);
-
-      const list = el("div", "round__matches");
-      for (const m of matches) list.appendChild(renderMatch(m));
-
-      title.addEventListener("click", () => {
-        if (!window.matchMedia("(max-width: 900px)").matches) return;
-        const collapsed = col.classList.toggle("is-collapsed");
-        title.setAttribute("aria-expanded", String(!collapsed));
-      });
-
-      col.append(title, list);
-      bracket.appendChild(col);
+    if (isMobile()) {
+      // Stacked, top-to-bottom: R32 (clean order) … Final, then champion.
+      bracket.classList.remove("bracket--sided");
+      const levels = levelsFromRoot(finalMatch.id); // [FINAL],[SF],[QF],[R16],[R32]
+      for (let i = levels.length - 1; i >= 0; i--) bracket.appendChild(renderColumn(levels[i]));
+      bracket.appendChild(renderChampion());
+      return;
     }
 
-    bracket.appendChild(renderChampion());
+    // Two-sided: left half | Final + champion | right half (mirrored to centre).
+    bracket.classList.add("bracket--sided");
+    const leftLevels = levelsFromRoot(finalMatch.source_home); // [SF],[QF],[R16],[R32]
+    const rightLevels = levelsFromRoot(finalMatch.source_away);
+
+    const left = el("div", "bracket__side bracket__side--left");
+    for (let i = leftLevels.length - 1; i >= 0; i--) left.appendChild(renderColumn(leftLevels[i]));
+
+    const center = el("div", "bracket__center");
+    center.appendChild(renderColumn([finalMatch.id]));
+    center.appendChild(renderChampion());
+
+    const right = el("div", "bracket__side bracket__side--right");
+    for (let i = 0; i < rightLevels.length; i++) right.appendChild(renderColumn(rightLevels[i]));
+
+    bracket.append(left, center, right);
   }
 
   function renderChampion() {
-    const col = el("div", "round round--champion");
     const card = el("div", "champion");
     const champ = winnerOf("FINAL");
 
@@ -306,8 +360,7 @@
       name.style.color = "var(--muted)";
       card.append(name);
     }
-    col.appendChild(card);
-    return col;
+    return card;
   }
 
   /* ---------------- standings ---------------- */
@@ -486,9 +539,12 @@
       const node = bracket.querySelector(`.match[data-id="${id}"]`);
       if (!node) return null;
       const r = node.getBoundingClientRect();
+      const left = r.left - base.left + scroll.scrollLeft;
+      const right = r.right - base.left + scroll.scrollLeft;
       return {
-        left: r.left - base.left + scroll.scrollLeft,
-        right: r.right - base.left + scroll.scrollLeft,
+        left,
+        right,
+        cx: (left + right) / 2,
         midY: r.top - base.top + scroll.scrollTop + r.height / 2,
       };
     };
@@ -502,11 +558,14 @@
         const srcId = m[side];
         const src = rectOf(srcId);
         if (!src) continue;
-        const x1 = src.right;
+        // Direction-aware: works for the left half, the mirrored right half,
+        // and both feeds into the centre Final.
+        const ltr = src.cx < tgt.cx;
+        const x1 = ltr ? src.right : src.left;
+        const x2 = ltr ? tgt.left : tgt.right;
         const y1 = src.midY;
-        const x2 = tgt.left;
         const y2 = tgt.midY;
-        const mx = x1 + (x2 - x1) / 2;
+        const mx = (x1 + x2) / 2;
         const done = state.results[srcId] && state.results[srcId].final;
         paths.push(
           `<path d="M ${x1} ${y1} H ${mx} V ${y2} H ${x2}" class="${
@@ -532,6 +591,17 @@
   if (window.ResizeObserver && bracketEl) {
     new ResizeObserver(scheduleConnectors).observe(bracketEl);
   }
+
+  // The two-sided desktop layout and the stacked mobile layout are different DOM,
+  // so re-render when crossing the breakpoint.
+  const layoutMq = window.matchMedia("(max-width: 900px)");
+  const onLayoutChange = () => {
+    if (!state.fixtures.matches.length) return;
+    renderBracket();
+    scheduleConnectors();
+  };
+  if (layoutMq.addEventListener) layoutMq.addEventListener("change", onLayoutChange);
+  else if (layoutMq.addListener) layoutMq.addListener(onLayoutChange);
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);

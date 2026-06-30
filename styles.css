@@ -237,9 +237,23 @@ main { max-width: 1280px; margin: 0 auto; padding: clamp(18px, 3vw, 30px) clamp(
   padding: 4px;
 }
 
-.round { display: flex; flex-direction: column; min-width: 216px; }
-.round--final { min-width: 200px; }
-.round--champion { min-width: 184px; justify-content: center; }
+.round { display: flex; flex-direction: column; min-width: 212px; }
+.round--final { min-width: 196px; }
+
+/* Two-sided layout: left half | Final + champion | mirrored right half */
+.bracket--sided { gap: clamp(16px, 2.2vw, 40px); }
+.bracket__side { display: flex; align-items: stretch; gap: clamp(16px, 2.2vw, 40px); }
+.bracket__center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  min-width: 200px;
+}
+.bracket__center .round { min-width: 200px; flex: 0 0 auto; }
+.bracket__center .round__matches { flex: 0 0 auto; }
+.bracket__center .champion { width: 100%; }
 
 .round__title {
   font-family: "Saira Condensed", sans-serif;
@@ -351,6 +365,7 @@ main { max-width: 1280px; margin: 0 auto; padding: clamp(18px, 3vw, 30px) clamp(
   flex: 0 0 auto;
   overflow: hidden;
 }
+.avatar__img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
 .team-row.is-winner .avatar { border-color: rgba(255, 209, 102, 0.7); }
 
 .flag {
@@ -475,7 +490,7 @@ main { max-width: 1280px; margin: 0 auto; padding: clamp(18px, 3vw, 30px) clamp(
     min-width: 0;
   }
   .round { min-width: 0; width: 100%; }
-  .round--champion { order: 99; }
+  .bracket > .champion { width: 100%; }
 
   .round__title { cursor: pointer; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 11px; margin-bottom: 0; }
   .round__title .round__chevron { display: inline-block; transition: transform 0.2s; color: var(--muted); }
