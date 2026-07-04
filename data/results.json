@@ -105,5 +105,12 @@
       "away": 4
     },
     "final": true
+  },
+  "R32-15": {
+    "home": 3,
+    "away": 2,
+    "winner": "home",
+    "pens": null,
+    "final": true
   }
 }
