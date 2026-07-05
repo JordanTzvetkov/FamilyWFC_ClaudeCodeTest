@@ -19,8 +19,19 @@
     fixtures: { matches: [], rounds: [] },
     results: {},
     headline: { current: null, history: [] },
+    prizes: null,
     byId: {},
     lang: localStorage.getItem("wc26-lang") === "bg" ? "bg" : "en",
+  };
+
+  const ROUND_LABEL_FULL = {
+    0: "Groups",
+    1: "Round of 32",
+    2: "Round of 16",
+    3: "Quarter-final",
+    4: "Semi-final",
+    5: "Final",
+    6: "Champions",
   };
 
   /* ---------------- data load ---------------- */
@@ -45,7 +56,15 @@
       state.byId = {};
       for (const m of state.fixtures.matches) state.byId[m.id] = m;
 
+      // Prize pot config is optional.
+      try {
+        state.prizes = await loadJSON("./data/prizes.json");
+      } catch (e) {
+        state.prizes = null;
+      }
+
       renderHeadline();
+      renderPot();
       renderStandings();
       renderBracket();
       wireLangToggle();
@@ -365,16 +384,163 @@
     return card;
   }
 
+  /* ---------------- prize pot ---------------- */
+  // Team -> owner, spanning the 32 bracket teams and the group-stage casualties.
+  function teamOwnerMap() {
+    const map = {};
+    for (const m of state.fixtures.matches) {
+      if (m.round !== "R32") continue;
+      if (m.home) map[m.home.team] = m.home.owner;
+      if (m.away) map[m.away.team] = m.away.owner;
+    }
+    for (const [owner, p] of Object.entries(state.people)) {
+      (p && p.out_groups ? p.out_groups : []).forEach((t) => (map[t.team] = owner));
+    }
+    return map;
+  }
+
+  function r32MatchOfTeam(team) {
+    return state.fixtures.matches.find(
+      (m) =>
+        m.round === "R32" &&
+        ((m.home && m.home.team === team) || (m.away && m.away.team === team))
+    );
+  }
+
+  // How far a team has got. depth: 0 groups .. 5 final, 6 champions.
+  function teamProgress(team) {
+    let m = r32MatchOfTeam(team);
+    if (!m) return { depth: 0, alive: false };
+    const DEPTH = { R32: 1, R16: 2, QF: 3, SF: 4, FINAL: 5 };
+    while (true) {
+      const r = state.results[m.id];
+      if (r && r.final) {
+        const parts = getParticipants(m);
+        const won = r.winner === "home" ? parts.home : parts.away;
+        if (won && won.team === team) {
+          if (m.feeds_into) {
+            m = state.byId[m.feeds_into];
+            continue;
+          }
+          return { depth: 6, alive: true };
+        }
+        return { depth: DEPTH[m.round], alive: false };
+      }
+      return { depth: DEPTH[m.round], alive: true };
+    }
+  }
+
+  function bestInTranche(list) {
+    let depth = -1;
+    let teams = [];
+    for (const team of list || []) {
+      const d = teamProgress(team).depth;
+      if (d > depth) {
+        depth = d;
+        teams = [team];
+      } else if (d === depth) {
+        teams.push(team);
+      }
+    }
+    return { depth, teams };
+  }
+
+  function renderPot() {
+    const grid = $("#pot-grid");
+    const section = $("#pot");
+    if (!grid) return;
+    const cfg = state.prizes;
+    if (!cfg || !Array.isArray(cfg.prizes)) {
+      if (section) section.style.display = "none";
+      return;
+    }
+    grid.innerHTML = "";
+    const cur = cfg.currency || "£";
+    const owners = teamOwnerMap();
+    const tr = cfg.tranches || {};
+    const man = cfg.manual || {};
+
+    const total = cfg.prizes.reduce((s, p) => s + (p.amount || 0), 0);
+    const totalEl = $("#pot-total");
+    if (totalEl) totalEl.textContent = cur + total;
+
+    const holdersFor = (key) => {
+      const one = (team, stage) => (team ? [{ team, owner: owners[team], stage }] : null);
+      if (key === "winner") {
+        const c = winnerOf("FINAL");
+        return c ? [{ team: c.team, owner: c.owner }] : null;
+      }
+      if (key === "runnerup") {
+        const f = state.byId["FINAL"];
+        const r = f && state.results["FINAL"];
+        if (r && r.final) {
+          const p = getParticipants(f);
+          const lo = r.winner === "home" ? p.away : p.home;
+          return lo ? [{ team: lo.team, owner: lo.owner }] : null;
+        }
+        return null;
+      }
+      if (key === "good_best" || key === "avg_best" || key === "weak_best") {
+        const name = key === "good_best" ? "Good" : key === "avg_best" ? "Average" : "Weak";
+        const best = bestInTranche(tr[name]);
+        if (best.depth < 0) return null;
+        return best.teams.map((t) => ({ team: t, owner: owners[t], stage: ROUND_LABEL_FULL[best.depth] }));
+      }
+      if (key === "golden_boot") return one(man.golden_boot_team);
+      if (key === "discipline") return one(man.discipline_team);
+      if (key === "worst_team") return one(man.worst_team);
+      return null;
+    };
+
+    for (const prize of cfg.prizes) {
+      const item = el("div", "pot__item");
+      const amount = el("div", "pot__amount");
+      amount.textContent = cur + prize.amount;
+      const label = el("div", "pot__label");
+      label.textContent = prize.label;
+
+      const holder = el("div", "pot__holder");
+      const holders = holdersFor(prize.key);
+      if (holders && holders.length) {
+        item.classList.add("is-held");
+        holders.forEach((h) => {
+          const win = el("div", "pot__winner");
+          win.appendChild(avatarEl(h.owner, "pot__avatar"));
+          const txt = el("div", "pot__winner-text");
+          const nm = el("span", "pot__owner");
+          const pc = (state.people[h.owner] || {}).color;
+          if (pc) nm.style.color = pc;
+          nm.textContent = h.owner || "—";
+          const tm = el("span", "pot__team");
+          tm.textContent = h.stage ? `${h.team} · ${h.stage}` : h.team;
+          txt.append(nm, tm);
+          win.append(txt);
+          holder.appendChild(win);
+        });
+      } else {
+        const tbd = el("span", "pot__tbd");
+        tbd.textContent = "TBD";
+        holder.appendChild(tbd);
+      }
+
+      item.append(amount, label, holder);
+      grid.appendChild(item);
+    }
+  }
+
   /* ---------------- standings ---------------- */
   function renderStandings() {
     const grid = $("#standings-grid");
+    const graveGrid = $("#graveyard-grid");
+    const graveyard = $("#graveyard");
+    const graveCount = $("#graveyard-count");
     grid.innerHTML = "";
+    if (graveGrid) graveGrid.innerHTML = "";
 
-    // Every R32 team, grouped by owner.
+    // Every R32 (bracket) team, grouped by owner.
     const byOwner = {};
     const order = Object.keys(state.people);
     const ensure = (owner) => (byOwner[owner] = byOwner[owner] || []);
-
     for (const m of state.fixtures.matches) {
       if (m.round !== "R32") continue;
       for (const t of [m.home, m.away]) {
@@ -382,24 +548,28 @@
       }
     }
 
-    // Eliminated team names (loser of any finished match).
+    // Eliminated bracket teams (loser of any finished match).
     const out = new Set();
     for (const m of state.fixtures.matches) {
       const loser = loserTeam(m);
       if (loser) out.add(loser.team);
     }
 
-    const owners = order.filter((o) => byOwner[o]);
-    // Sort by teams still alive (desc), then name.
-    owners.sort((a, b) => {
-      const av = byOwner[a].filter((t) => !out.has(t.team)).length;
-      const bv = byOwner[b].filter((t) => !out.has(t.team)).length;
-      return bv - av || a.localeCompare(b);
-    });
+    // Group-stage casualties declared per owner in people.json as `out_groups`.
+    const groupOut = (owner) => {
+      const g = (state.people[owner] || {}).out_groups;
+      return Array.isArray(g) ? g : [];
+    };
+    const aliveCount = (owner) =>
+      (byOwner[owner] || []).filter((t) => !out.has(t.team)).length;
 
-    for (const owner of owners) {
-      const teams = byOwner[owner];
-      const aliveN = teams.filter((t) => !out.has(t.team)).length;
+    const owners = order.filter((o) => (byOwner[o] && byOwner[o].length) || groupOut(o).length);
+
+    const makeCard = (owner) => {
+      const teams = byOwner[owner] || [];
+      const gout = groupOut(owner);
+      const aliveN = aliveCount(owner);
+      const outN = teams.length - aliveN + gout.length;
 
       const card = el("div", "person");
       card.appendChild(avatarEl(owner));
@@ -422,46 +592,169 @@
           chip.appendChild(tn);
           chips.appendChild(chip);
         });
+      gout.forEach((t) => {
+        const chip = el("span", "chip chip--out chip--group");
+        chip.appendChild(flagEl(t.code, t.team));
+        const tn = el("span");
+        tn.textContent = t.team;
+        chip.appendChild(tn);
+        const tag = el("span", "chip__tag");
+        tag.textContent = "groups";
+        chip.appendChild(tag);
+        chips.appendChild(chip);
+      });
 
       const tally = el("div", "person__tally");
-      tally.innerHTML = `<b>${aliveN}</b> alive · ${teams.length - aliveN} out`;
-
+      tally.innerHTML = `<b>${aliveN}</b> alive · ${outN} out`;
       body.append(name, chips, tally);
       card.appendChild(body);
-      grid.appendChild(card);
+      return card;
+    };
+
+    const alive = owners
+      .filter((o) => aliveCount(o) > 0)
+      .sort((a, b) => aliveCount(b) - aliveCount(a) || a.localeCompare(b));
+    const dead = owners.filter((o) => aliveCount(o) === 0).sort((a, b) => a.localeCompare(b));
+
+    alive.forEach((o) => grid.appendChild(makeCard(o)));
+    if (graveGrid) dead.forEach((o) => graveGrid.appendChild(makeCard(o)));
+
+    if (graveyard) {
+      graveyard.style.display = dead.length ? "" : "none";
+      if (graveCount) graveCount.textContent = `(${dead.length})`;
     }
   }
 
-  /* ---------------- headline ---------------- */
+  /* ---------------- headline carousel (bilingual) ---------------- */
+  const HEADLINE_WINDOW_MS = 24 * 60 * 60 * 1000; // last 24h
+  const HEADLINE_ROTATE_MS = 6500;
+  const HEADLINE_MIN = 2;
+  const HEADLINE_FALLBACK = 5;
+  let hlItems = [];
+  let hlIndex = 0;
+  let hlTimer = null;
+
+  // Newest-first headlines from the last 24h (widen to the recent handful in a lull).
+  function collectHeadlines() {
+    const h = state.headline || {};
+    const all = [];
+    if (h.current) all.push(h.current);
+    if (Array.isArray(h.history)) all.push(...h.history);
+    const withText = all
+      .filter((x) => x && (x.en || x.bg))
+      .sort((a, b) => Date.parse(b.generated_at) - Date.parse(a.generated_at));
+    const now = Date.now();
+    let items = withText.filter((x) => now - Date.parse(x.generated_at) <= HEADLINE_WINDOW_MS);
+    if (items.length < HEADLINE_MIN) items = withText.slice(0, HEADLINE_FALLBACK);
+    return items;
+  }
+
   function renderHeadline() {
-    const c = state.headline.current;
+    hlItems = collectHeadlines();
+    hlIndex = 0;
+    wireHeadlineControls();
+    showHeadline(0);
+    startHeadlineAuto();
+  }
+
+  function showHeadline(i) {
     const primaryEl = $("#headline-primary");
     const secondaryEl = $("#headline-secondary");
     const updatedEl = $("#headline-updated");
-
-    if (!c || (!c.en && !c.bg)) {
-      primaryEl.textContent = "No results yet — first whistle awaits.";
-      secondaryEl.textContent = "";
-      updatedEl.textContent = "";
-      return;
-    }
-
-    const other = state.lang === "en" ? "bg" : "en";
-    primaryEl.innerHTML = highlightNames(c[state.lang] || c[other] || "", state.lang);
-    secondaryEl.textContent = c[other] || "";
-    updatedEl.textContent = c.generated_at ? "Updated " + relTime(c.generated_at) : "";
+    if (!primaryEl) return;
 
     document.querySelectorAll(".lang-toggle__btn").forEach((b) =>
       b.classList.toggle("is-active", b.dataset.lang === state.lang)
     );
+
+    if (!hlItems.length) {
+      primaryEl.textContent = "No results yet — first whistle awaits.";
+      if (secondaryEl) secondaryEl.textContent = "";
+      if (updatedEl) updatedEl.textContent = "";
+      renderHeadlineDots();
+      toggleHeadlineNav(false);
+      return;
+    }
+
+    hlIndex = ((i % hlItems.length) + hlItems.length) % hlItems.length;
+    const h = hlItems[hlIndex];
+    const other = state.lang === "en" ? "bg" : "en";
+    primaryEl.innerHTML = highlightNames(h[state.lang] || h[other] || "", state.lang);
+    if (secondaryEl) secondaryEl.textContent = h[other] || "";
+    primaryEl.classList.remove("hl-anim");
+    void primaryEl.offsetWidth;
+    primaryEl.classList.add("hl-anim");
+    if (updatedEl) updatedEl.textContent = h.generated_at ? "Updated " + relTime(h.generated_at) : "";
+    renderHeadlineDots();
+    toggleHeadlineNav(hlItems.length > 1);
+  }
+
+  function renderHeadlineDots() {
+    const dots = $("#headline-dots");
+    if (!dots) return;
+    dots.innerHTML = "";
+    if (hlItems.length <= 1) return;
+    hlItems.forEach((_, i) => {
+      dots.appendChild(el("span", "headline__dot" + (i === hlIndex ? " is-active" : "")));
+    });
+  }
+
+  function toggleHeadlineNav(show) {
+    ["#headline-prev", "#headline-next"].forEach((sel) => {
+      const b = $(sel);
+      if (b) b.style.visibility = show ? "" : "hidden";
+    });
+  }
+
+  function goHeadline(delta) {
+    showHeadline(hlIndex + delta);
+    restartHeadlineAuto();
+  }
+
+  function startHeadlineAuto() {
+    stopHeadlineAuto();
+    if (hlItems.length <= 1) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    hlTimer = setInterval(() => showHeadline(hlIndex + 1), HEADLINE_ROTATE_MS);
+  }
+  function stopHeadlineAuto() {
+    if (hlTimer) {
+      clearInterval(hlTimer);
+      hlTimer = null;
+    }
+  }
+  function restartHeadlineAuto() {
+    stopHeadlineAuto();
+    startHeadlineAuto();
+  }
+
+  function wireHeadlineControls() {
+    const prev = $("#headline-prev");
+    const next = $("#headline-next");
+    const wrap = $("#headline");
+    if (prev && !prev.dataset.wired) {
+      prev.dataset.wired = "1";
+      prev.addEventListener("click", () => goHeadline(-1));
+    }
+    if (next && !next.dataset.wired) {
+      next.dataset.wired = "1";
+      next.addEventListener("click", () => goHeadline(1));
+    }
+    if (wrap && !wrap.dataset.wired) {
+      wrap.dataset.wired = "1";
+      wrap.addEventListener("mouseenter", stopHeadlineAuto);
+      wrap.addEventListener("mouseleave", startHeadlineAuto);
+    }
   }
 
   function wireLangToggle() {
     document.querySelectorAll(".lang-toggle__btn").forEach((btn) => {
+      if (btn.dataset.wired) return;
+      btn.dataset.wired = "1";
       btn.addEventListener("click", () => {
         state.lang = btn.dataset.lang;
         localStorage.setItem("wc26-lang", state.lang);
-        renderHeadline();
+        showHeadline(hlIndex); // re-render current slide in the new language
       });
     });
   }
