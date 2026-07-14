@@ -1,15 +1,23 @@
 {
   "current": {
-    "en": "Petya's Spain, Grandad's England, and Grandma's Argentina all crash the party — sorry Ash, Miro, and Nila, your bags are packed! 🎉",
-    "bg": "Испания на Петя, Англия на Дядо и Аржентина на Баба влязоха в полуфиналите — съжаляваме, Аш, Миро и Нила, куфарите ви са наредени! 🎉",
-    "generated_at": "2026-07-14T09:57:45.557Z",
+    "en": "Petya's Spanish bulls are heading to the final — sorry Jayna, La Roja shut the party down 2-0! 🐂🔥",
+    "bg": "Испанските бикове на Петя тръгват към финала — съжаляваме, Яйна, Ла Роха затвори парти-то с 2:0! 🐂🔥",
+    "generated_at": "2026-07-14T22:32:38.284Z",
     "covers": [
-      "QF-2",
-      "QF-3",
-      "QF-4"
+      "SF-1"
     ]
   },
   "history": [
+    {
+      "en": "Petya's Spain, Grandad's England, and Grandma's Argentina all crash the party — sorry Ash, Miro, and Nila, your bags are packed! 🎉",
+      "bg": "Испания на Петя, Англия на Дядо и Аржентина на Баба влязоха в полуфиналите — съжаляваме, Аш, Миро и Нила, куфарите ви са наредени! 🎉",
+      "generated_at": "2026-07-14T09:57:45.557Z",
+      "covers": [
+        "QF-2",
+        "QF-3",
+        "QF-4"
+      ]
+    },
     {
       "en": "Jayna's Les Bleus are unstoppable — Mbappé and Dembélé cook up a 2-0 masterclass to send Aleks's Atlas Lions packing and France marching into the semis!",
       "bg": "Франция на Джейна е неудържима — Мбапе и Дембеле сготвиха 2:0 шедьовър, изпращайки лъвовете на Алекс у дома, докато Лазурните крачат към полуфиналите!",
@@ -161,14 +169,6 @@
       "generated_at": "2026-07-01T02:59:03.941Z",
       "covers": [
         "R32-6"
-      ]
-    },
-    {
-      "en": "Miro's Vikings are marching on — Haaland breaks Ash's hearts with a late, late winner to send Norway roaring into the last 16!",
-      "bg": "Викингите на Миро маршируват напред — Холан разби сърцата на Аш с късен гол и прати Норвегия в 1/16-финала!",
-      "generated_at": "2026-06-30T20:46:18.709Z",
-      "covers": [
-        "R32-5"
       ]
     }
   ]
