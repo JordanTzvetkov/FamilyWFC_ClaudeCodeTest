@@ -1,13 +1,21 @@
 {
   "current": {
-    "en": "Petya's Spanish bulls are heading to the final — sorry Jayna, La Roja shut the party down 2-0! 🐂🔥",
-    "bg": "Испанските бикове на Петя тръгват към финала — съжаляваме, Яйна, Ла Роха затвори парти-то с 2:0! 🐂🔥",
-    "generated_at": "2026-07-14T22:32:38.284Z",
+    "en": "Grandma's Argentina break Grandad's heart with a last-gasp comeback, stealing a 2-1 thriller to waltz into the World Cup Final! 💙🤍",
+    "bg": "Аржентина на Баба счупи сърцето на Дядо с обрат в последния момент, грабвайки трилър 2:1 и танцувайки право на финала на Световното! 💙🤍",
+    "generated_at": "2026-07-15T22:55:25.055Z",
     "covers": [
-      "SF-1"
+      "SF-2"
     ]
   },
   "history": [
+    {
+      "en": "Petya's Spanish bulls are heading to the final — sorry Jayna, La Roja shut the party down 2-0! 🐂🔥",
+      "bg": "Испанските бикове на Петя тръгват към финала — съжаляваме, Яйна, Ла Роха затвори парти-то с 2:0! 🐂🔥",
+      "generated_at": "2026-07-14T22:32:38.284Z",
+      "covers": [
+        "SF-1"
+      ]
+    },
     {
       "en": "Petya's Spain, Grandad's England, and Grandma's Argentina all crash the party — sorry Ash, Miro, and Nila, your bags are packed! 🎉",
       "bg": "Испания на Петя, Англия на Дядо и Аржентина на Баба влязоха в полуфиналите — съжаляваме, Аш, Миро и Нила, куфарите ви са наредени! 🎉",
@@ -161,14 +169,6 @@
       "generated_at": "2026-07-01T07:16:49.616Z",
       "covers": [
         "R32-7"
-      ]
-    },
-    {
-      "en": "Jayna's Les Bleus steamrolled Deyan's Vikings 3-0 — Mbappé said 'non merci' to any Swedish drama!",
-      "bg": "Отборът на Джейна разби викингите на Деян с 3:0 — Мбапе каза 'non merci' на всякакъв шведски драматизъм!",
-      "generated_at": "2026-07-01T02:59:03.941Z",
-      "covers": [
-        "R32-6"
       ]
     }
   ]
