@@ -1,13 +1,21 @@
 {
   "current": {
-    "en": "Grandma's Argentina break Grandad's heart with a last-gasp comeback, stealing a 2-1 thriller to waltz into the World Cup Final! 💙🤍",
-    "bg": "Аржентина на Баба счупи сърцето на Дядо с обрат в последния момент, грабвайки трилър 2:1 и танцувайки право на финала на Световното! 💙🤍",
-    "generated_at": "2026-07-15T22:55:25.055Z",
+    "en": "Petya's Spain broke Grandma's golden dream in extra time — sorry, Grandma, but the trophy's going to Petya! 🏆🎉",
+    "bg": "Отборът на Петя разби златната мечта на Баба в продълженията — съжаляваме, Бабо, но купата отива при Петя! 🏆🎉",
+    "generated_at": "2026-07-19T22:23:59.721Z",
     "covers": [
-      "SF-2"
+      "FINAL"
     ]
   },
   "history": [
+    {
+      "en": "Grandma's Argentina break Grandad's heart with a last-gasp comeback, stealing a 2-1 thriller to waltz into the World Cup Final! 💙🤍",
+      "bg": "Аржентина на Баба счупи сърцето на Дядо с обрат в последния момент, грабвайки трилър 2:1 и танцувайки право на финала на Световното! 💙🤍",
+      "generated_at": "2026-07-15T22:55:25.055Z",
+      "covers": [
+        "SF-2"
+      ]
+    },
     {
       "en": "Petya's Spanish bulls are heading to the final — sorry Jayna, La Roja shut the party down 2-0! 🐂🔥",
       "bg": "Испанските бикове на Петя тръгват към финала — съжаляваме, Яйна, Ла Роха затвори парти-то с 2:0! 🐂🔥",
@@ -161,14 +169,6 @@
       "generated_at": "2026-07-01T19:17:05.724Z",
       "covers": [
         "R32-8"
-      ]
-    },
-    {
-      "en": "Grandad's El Tri are partying at the Azteca — a clean, clinical 2-0 sends Prem's Ecuador packing and ends Mexico's 40-year knockout curse!",
-      "bg": "Дядовият El Tri празнува в Ацтека — чист и клиничен резултат 2:0 изпраща Екуадор на Пrem у дома и слага край на 40-годишното проклятие на Мексико в елиминациите!",
-      "generated_at": "2026-07-01T07:16:49.616Z",
-      "covers": [
-        "R32-7"
       ]
     }
   ]
